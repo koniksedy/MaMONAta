@@ -1,0 +1,110 @@
+#ifndef MAMONATA_MTROBDD_HH_
+#define MAMONATA_MTROBDD_HH_
+
+#include <memory>
+#include <assert.h>
+#include <cstddef>
+#include <functional>
+#include <limits>
+#include <unordered_set>
+
+namespace mamonata::mtrobdd
+{
+using Index = int;
+using BddNodePtr = std::shared_ptr<struct BddNode>;
+using Value = size_t;
+using NodeName = size_t;
+using NodeSet = std::unordered_set<BddNodePtr, NodePtrHash, NodePtrEqual>;
+using NodeMap = std::unordered_map<NodeName, BddNodePtr>;
+static constexpr Value MAX_VALUE = std::numeric_limits<Value>::max();
+static constexpr Index TERMINAL_INDEX = -1;
+
+struct BddNode {
+    Index var_index;
+    BddNodePtr low;
+    BddNodePtr high;
+    Value value;
+
+    BddNode(Index idx = -1, BddNodePtr l = nullptr, BddNodePtr h = nullptr, Value v = MAX_VALUE)
+        : var_index(idx), low(l), high(h), value(v) {}
+
+    bool operator==(const BddNode& other) const {
+        return var_index == other.var_index && low.get() == other.low.get() && high.get() == other.high.get() && value == other.value;
+    }
+
+    bool is_root() const {
+        return var_index == 0;
+    }
+
+    bool is_inner() const {
+        return var_index > 0;
+    }
+
+    bool is_terminal() const {
+        return var_index == TERMINAL_INDEX;
+    }
+};
+
+struct NodePtrHash {
+    size_t operator()(const BddNodePtr& node) const {
+        size_t h1 = std::hash<Index>()(node->var_index);
+        size_t h2 = std::hash<size_t>()(reinterpret_cast<size_t>(node->low.get()));
+        size_t h3 = std::hash<size_t>()(reinterpret_cast<size_t>(node->high.get()));
+        size_t h4 = std::hash<Value>()(node->value);
+        return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
+    }
+};
+
+struct NodePtrEqual {
+    bool operator()(const BddNodePtr& lhs, const BddNodePtr& rhs) const {
+        return *lhs == *rhs;
+    }
+};
+
+class MtRobdd
+{
+    size_t num_of_vars;
+    NodeSet nodes;
+    NodeMap root_nodes_map;
+
+public:
+    MtRobdd() : num_of_vars(0), nodes(), root_nodes_map() {}
+    explicit MtRobdd(size_t num_vars) : num_of_vars(num_vars), nodes(), root_nodes_map() {}
+
+    void set_num_of_vars(size_t num_vars) {
+        num_of_vars = num_vars;
+    }
+
+    size_t get_num_of_vars() const {
+        return num_of_vars;
+    }
+
+    BddNodePtr create_node(Index var_index, BddNodePtr low = nullptr, BddNodePtr high = nullptr, Value value = MAX_VALUE) {
+        BddNodePtr new_node = std::make_shared<BddNode>(var_index, low, high, value);
+        auto it = nodes.find(new_node);
+        if (it != nodes.end()) {
+            return *it;
+        }
+        nodes.insert(new_node);
+        return new_node;
+    }
+
+    BddNodePtr create_root_node(NodeName name) {
+        assert(root_nodes_map.find(name) == root_nodes_map.end());
+        BddNodePtr root_node = create_node(0);
+        root_nodes_map[name] = root_node;
+        return root_node;
+    }
+
+    BddNodePtr get_root_node(NodeName name) const {
+        auto it = root_nodes_map.find(name);
+        if (it != root_nodes_map.end()) {
+            return it->second;
+        }
+        return nullptr;
+    }
+};
+
+} // namespace mamonata::mtrobdd
+
+#endif // MAMONATA_MTROBDD_HH_
