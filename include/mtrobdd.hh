@@ -18,7 +18,7 @@ namespace mamonata::mtrobdd
 using Index = int;
 using BddNodePtr = std::shared_ptr<struct BddNode>;
 using Value = size_t;
-using Bit = bool;
+using Bit = uint8_t;
 using BitVector = std::vector<Bit>;
 using NodeName = size_t;
 
@@ -27,6 +27,16 @@ static constexpr Value SINK_VALUE = MAX_VALUE - 1;
 static const Index TERMINAL_INDEX = -1;
 static const Bit HI = true;
 static const Bit LO = false;
+
+struct BitVectorHash {
+    size_t operator()(const BitVector& bv) const {
+        size_t hash = 0;
+        for (const auto& bit : bv) {
+            hash = (hash << 1) ^ std::hash<Bit>()(bit);
+        }
+        return hash;
+    }
+};
 
 struct BddNode {
     Index var_index;
@@ -60,8 +70,8 @@ struct BddNode {
 struct NodePtrHash {
     size_t operator()(const BddNodePtr& node) const {
         size_t h1 = std::hash<Index>()(node->var_index);
-        size_t h2 = std::hash<size_t>()(reinterpret_cast<size_t>(node->low.get()));
-        size_t h3 = std::hash<size_t>()(reinterpret_cast<size_t>(node->high.get()));
+        size_t h2 = std::hash<uintptr_t>()(reinterpret_cast<uintptr_t>(node->low.get()));
+        size_t h3 = std::hash<uintptr_t>()(reinterpret_cast<uintptr_t>(node->high.get()));
         size_t h4 = std::hash<Value>()(node->value);
         return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
     }
@@ -69,6 +79,8 @@ struct NodePtrHash {
 
 struct NodePtrEqual {
     bool operator()(const BddNodePtr& lhs, const BddNodePtr& rhs) const {
+        if (lhs == rhs) return true;
+        if (!lhs || !rhs) return false;
         return *lhs == *rhs;
     }
 };

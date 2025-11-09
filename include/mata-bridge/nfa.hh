@@ -1,5 +1,5 @@
-#ifndef MAMONATA_NFA_NFA_HH_
-#define MAMONATA_NFA_NFA_HH_
+#ifndef MAMONATA_MATA_NFA_HH_
+#define MAMONATA_MATA_NFA_HH_
 
 #include <vector>
 #include <numeric>
@@ -9,9 +9,12 @@
 #include "mata/nfa/builder.hh"
 
 
-namespace mamonata::nfa {
+namespace mamonata::mata::nfa {
+// ensure all mata::... refer to the top-level ::mata
+namespace mata = ::mata;
 
 using State = mata::nfa::State;
+using StateSet = mata::nfa::StateSet;
 using Symbol = mata::Symbol;
 using Transition = mata::nfa::Transition;
 template<typename Key>
@@ -79,6 +82,24 @@ public:
 
     std::vector<Transition> get_transitions() const {
         return { nfa_impl.delta.transitions().begin(), nfa_impl.delta.transitions().end() };
+    }
+
+    std::vector<State> get_successors(State source, Symbol symbol) const {
+        StateSet successors = nfa_impl.post(source, symbol);
+        return { successors.begin(), successors.end() };
+    }
+
+    size_t get_nondeterminism_level() const {
+        size_t max_nondet = 0;
+        for (const auto& state_post : nfa_impl.delta) {
+            for (const auto& symbol_post : state_post) {
+                size_t num_targets = symbol_post.targets.size();
+                if (num_targets > max_nondet) {
+                    max_nondet = num_targets;
+                }
+            }
+        }
+        return max_nondet;
     }
 
     Nfa& unify_initial_states(bool force_new_state = false) {
@@ -177,11 +198,11 @@ public:
     }
 
     void print() const {
-        nfa_impl.print_to_mata();
+        std::cout << nfa_impl.print_to_mata();
     }
 
     void print_as_dot(const bool decode_ascii_chars = false, bool use_intervals = false, int max_label_length = -1) const {
-        nfa_impl.print_to_dot(decode_ascii_chars, use_intervals, max_label_length);
+        std::cout << nfa_impl.print_to_dot(decode_ascii_chars, use_intervals, max_label_length);
     }
 };
 }
