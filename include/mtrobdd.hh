@@ -7,17 +7,27 @@
 #include <functional>
 #include <limits>
 #include <unordered_set>
+#include <fstream>
+#include <filesystem>
+#include <iostream>
+
 
 namespace mamonata::mtrobdd
 {
 using Index = int;
 using BddNodePtr = std::shared_ptr<struct BddNode>;
 using Value = size_t;
+using Bit = bool;
+using BitVector = std::vector<Bit>;
 using NodeName = size_t;
 using NodeSet = std::unordered_set<BddNodePtr, NodePtrHash, NodePtrEqual>;
 using NodeMap = std::unordered_map<NodeName, BddNodePtr>;
+
 static constexpr Value MAX_VALUE = std::numeric_limits<Value>::max();
-static constexpr Index TERMINAL_INDEX = -1;
+static constexpr Value SINK_VALUE = MAX_VALUE - 1;
+static const Index TERMINAL_INDEX = -1;
+static const Bit HI = true;
+static const Bit LO = false;
 
 struct BddNode {
     Index var_index;
@@ -25,11 +35,14 @@ struct BddNode {
     BddNodePtr high;
     Value value;
 
-    BddNode(Index idx = -1, BddNodePtr l = nullptr, BddNodePtr h = nullptr, Value v = MAX_VALUE)
+    BddNode(Index idx = TERMINAL_INDEX, BddNodePtr l = nullptr, BddNodePtr h = nullptr, Value v = MAX_VALUE)
         : var_index(idx), low(l), high(h), value(v) {}
 
     bool operator==(const BddNode& other) const {
-        return var_index == other.var_index && low.get() == other.low.get() && high.get() == other.high.get() && value == other.value;
+        return var_index == other.var_index &&
+               low.get() == other.low.get() &&
+               high.get() == other.high.get() &&
+               value == other.value;
     }
 
     bool is_root() const {
@@ -67,6 +80,8 @@ class MtRobdd
     NodeSet nodes;
     NodeMap root_nodes_map;
 
+    void to_dot(std::ostream& os) const;
+
 public:
     MtRobdd() : num_of_vars(0), nodes(), root_nodes_map() {}
     explicit MtRobdd(size_t num_vars) : num_of_vars(num_vars), nodes(), root_nodes_map() {}
@@ -102,6 +117,33 @@ public:
             return it->second;
         }
         return nullptr;
+    }
+
+    BddNodePtr create_terminal_node(Value value) {
+        return create_node(TERMINAL_INDEX, nullptr, nullptr, value);
+    }
+
+    BddNodePtr insert_path(BddNodePtr src, Index var_index, const BitVector& path, Value value);
+
+    BddNodePtr insert_path(NodeName root_name, const BitVector& path, Value value) {
+        BddNodePtr root_node = get_root_node(root_name);
+        BddNodePtr new_root = insert_path(root_node, 0, path, value);
+        root_nodes_map[root_name] = new_root;
+        return new_root;
+    }
+
+    void remove_redundant_tests();
+
+    void complete(bool complete_terminal_nodes = true);
+
+    void save_as_dot(const std::filesystem::path& file_path) const {
+        std::ofstream ofs(file_path);
+        to_dot(ofs);
+        ofs.close();
+    }
+
+    void print_as_dot() const {
+        to_dot(std::cout);
     }
 };
 
