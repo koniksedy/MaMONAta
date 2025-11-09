@@ -10,6 +10,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iostream>
+#include <stack>
 
 
 namespace mamonata::mtrobdd
@@ -20,8 +21,6 @@ using Value = size_t;
 using Bit = bool;
 using BitVector = std::vector<Bit>;
 using NodeName = size_t;
-using NodeSet = std::unordered_set<BddNodePtr, NodePtrHash, NodePtrEqual>;
-using NodeMap = std::unordered_map<NodeName, BddNodePtr>;
 
 static constexpr Value MAX_VALUE = std::numeric_limits<Value>::max();
 static constexpr Value SINK_VALUE = MAX_VALUE - 1;
@@ -74,6 +73,9 @@ struct NodePtrEqual {
     }
 };
 
+using NodeSet = std::unordered_set<BddNodePtr, NodePtrHash, NodePtrEqual>;
+using NodeMap = std::unordered_map<NodeName, BddNodePtr>;
+
 class MtRobdd
 {
     size_t num_of_vars;
@@ -125,16 +127,18 @@ public:
 
     BddNodePtr insert_path(BddNodePtr src, Index var_index, const BitVector& path, Value value);
 
-    BddNodePtr insert_path(NodeName root_name, const BitVector& path, Value value) {
+    BddNodePtr insert_path_from_root(NodeName root_name, const BitVector& path, Value value) {
         BddNodePtr root_node = get_root_node(root_name);
         BddNodePtr new_root = insert_path(root_node, 0, path, value);
         root_nodes_map[root_name] = new_root;
         return new_root;
     }
 
-    void remove_redundant_tests();
+    MtRobdd& trim();
 
-    void complete(bool complete_terminal_nodes = true);
+    MtRobdd& remove_redundant_tests();
+
+    MtRobdd& complete(bool complete_terminal_nodes = true);
 
     void save_as_dot(const std::filesystem::path& file_path) const {
         std::ofstream ofs(file_path);

@@ -23,12 +23,11 @@ target_include_directories(mona_lib PUBLIC
 #################################################################
 add_subdirectory(extern/mata)
 
-add_executable(${PROJECT_NAME} main.cc)
-
-# target_include_directories(${PROJECT_NAME} PRIVATE
-#   "${CMAKE_SOURCE_DIR}/extern/mata"
-#   "${CMAKE_SOURCE_DIR}/extern/mata/include"
-#   "${CMAKE_SOURCE_DIR}/extern/mata/src"
-# )
+# Add MaMONAta executable
+#################################################################
+# Collect all source files from the src folder
+file(GLOB_RECURSE SRC_FILES "${CMAKE_SOURCE_DIR}/src/*.cc")
+add_executable(${PROJECT_NAME} ${SRC_FILES})
+target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/include")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE mona_lib libmata)

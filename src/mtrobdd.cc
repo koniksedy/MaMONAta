@@ -37,7 +37,34 @@ namespace mamonata::mtrobdd
         return create_node(var_index, low_child, high_child);
     }
 
-    void MtRobdd::remove_redundant_tests() {
+    MtRobdd& MtRobdd::trim() {
+        NodeSet usefull_nodes;
+
+        std::stack<BddNodePtr> worklist;
+        for (const auto& [name, root_node] : root_nodes_map) {
+            worklist.push(root_node);
+            usefull_nodes.insert(root_node);
+        }
+
+        while (!worklist.empty()) {
+            BddNodePtr current_node = worklist.top();
+            worklist.pop();
+
+            if (current_node->low != nullptr && !usefull_nodes.contains(current_node->low)) {
+                usefull_nodes.insert(current_node->low);
+                worklist.push(current_node->low);
+            }
+            if (current_node->high != nullptr && !usefull_nodes.contains(current_node->high)) {
+                usefull_nodes.insert(current_node->high);
+                worklist.push(current_node->high);
+            }
+        }
+
+        nodes = std::move(usefull_nodes);
+        return *this;
+    }
+
+    MtRobdd& MtRobdd::remove_redundant_tests() {
         NodeSet new_nodes;
         NodeMap new_root_nodes_map;
 
@@ -73,9 +100,11 @@ namespace mamonata::mtrobdd
         }
         nodes = std::move(new_nodes);
         root_nodes_map = std::move(new_root_nodes_map);
+
+        return *this;
     }
 
-    void MtRobdd::complete(const bool complete_terminal_nodes) {
+    MtRobdd& MtRobdd::complete(const bool complete_terminal_nodes) {
         BddNodePtr terminal_sink = std::make_shared<BddNode>(TERMINAL_INDEX, nullptr, nullptr, SINK_VALUE);
         bool used_sink = false;
 
@@ -103,6 +132,8 @@ namespace mamonata::mtrobdd
             nodes.insert(terminal_sink);
             root_nodes_map[SINK_VALUE] = terminal_sink;
         }
+
+        return *this;
     }
 
     void MtRobdd::to_dot(std::ostream& os) const {
@@ -121,7 +152,8 @@ namespace mamonata::mtrobdd
         os << "  // Pre-root nodes\n";
         os << "  { rank=same; ";
         for (const auto& [name, root_node] : root_nodes_map) {
-            os << name << " [label=\"<< name << \"]; ";
+            std::string name_str = name == SINK_VALUE ? "sink" : std::to_string(name);
+            os << name << " [label=\""<< name_str << "\"]; ";
         }
         os << "}\n";
 
@@ -141,7 +173,8 @@ namespace mamonata::mtrobdd
         os << "  // Terminal nodes\n";
         os << "  { rank=same; ";
         for (const auto& node : levels.at(TERMINAL_INDEX)) {
-            os << reinterpret_cast<std::uintptr_t>(node.get()) << " [label=\"" << node->value << "\"]; ";
+            std::string label = node->value == SINK_VALUE ? "sink" : std::to_string(node->value);
+            os << reinterpret_cast<std::uintptr_t>(node.get()) << " [label=\"" << label << "\"]; ";
         }
         os << "}\n";
 
