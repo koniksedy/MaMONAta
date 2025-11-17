@@ -62,8 +62,16 @@ public:
         return { nfa_impl.initial.begin(), nfa_impl.initial.end() };
     }
 
+    bool is_initial_state(State state) const {
+        return nfa_impl.initial.contains(state);
+    }
+
     std::vector<State> get_final_states() const {
         return { nfa_impl.final.begin(), nfa_impl.final.end() };
+    }
+
+    bool is_final_state(State state) const {
+        return nfa_impl.final.contains(state);
     }
 
     std::vector<Symbol> get_states() const {

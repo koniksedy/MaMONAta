@@ -104,8 +104,8 @@ namespace mamonata::mtrobdd
         return *this;
     }
 
-    MtRobdd& MtRobdd::complete(const bool complete_terminal_nodes) {
-        BddNodePtr terminal_sink = std::make_shared<BddNode>(TERMINAL_INDEX, nullptr, nullptr, SINK_VALUE);
+    MtRobdd& MtRobdd::complete(const Value sink_value, const bool complete_terminal_nodes) {
+        BddNodePtr terminal_sink = std::make_shared<BddNode>(TERMINAL_INDEX, nullptr, nullptr, sink_value);
         bool used_sink = false;
 
         for (const auto& node : nodes) {
@@ -130,7 +130,7 @@ namespace mamonata::mtrobdd
 
         if (used_sink) {
             nodes.insert(terminal_sink);
-            root_nodes_map[SINK_VALUE] = terminal_sink;
+            root_nodes_map[sink_value] = terminal_sink;
         }
 
         return *this;

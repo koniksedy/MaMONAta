@@ -87,6 +87,7 @@ struct NodePtrEqual {
 
 using NodeSet = std::unordered_set<BddNodePtr, NodePtrHash, NodePtrEqual>;
 using NodeMap = std::unordered_map<NodeName, BddNodePtr>;
+using NodeToNameMap = std::unordered_map<BddNodePtr, NodeName, NodePtrHash, NodePtrEqual>;
 
 class MtRobdd
 {
@@ -108,6 +109,23 @@ public:
         return num_of_vars;
     }
 
+    size_t get_num_of_nodes() const {
+        return nodes.size();
+    }
+
+    size_t get_num_of_roots() const {
+        return root_nodes_map.size();
+    }
+
+    NodeToNameMap get_node_to_position_map() const {
+        NodeToNameMap node_to_position_map;
+        size_t position = 0;
+        for (const auto& node : nodes) {
+            node_to_position_map[node] = position++;
+        }
+        return node_to_position_map;
+    }
+
     BddNodePtr create_node(Index var_index, BddNodePtr low = nullptr, BddNodePtr high = nullptr, Value value = MAX_VALUE) {
         BddNodePtr new_node = std::make_shared<BddNode>(var_index, low, high, value);
         auto it = nodes.find(new_node);
@@ -118,11 +136,19 @@ public:
         return new_node;
     }
 
+    void insert_node(BddNodePtr node) {
+        nodes.insert(node);
+    }
+
     BddNodePtr create_root_node(NodeName name) {
         assert(root_nodes_map.find(name) == root_nodes_map.end());
         BddNodePtr root_node = create_node(0);
         root_nodes_map[name] = root_node;
         return root_node;
+    }
+
+    void promote_to_root(BddNodePtr node, NodeName name) {
+        root_nodes_map[name] = node;
     }
 
     BddNodePtr get_root_node(NodeName name) const {
@@ -150,7 +176,7 @@ public:
 
     MtRobdd& remove_redundant_tests();
 
-    MtRobdd& complete(bool complete_terminal_nodes = true);
+    MtRobdd& complete(Value sink_value = SINK_VALUE, bool complete_terminal_nodes = true);
 
     void save_as_dot(const std::filesystem::path& file_path) const {
         std::ofstream ofs(file_path);
