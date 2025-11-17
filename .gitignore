@@ -1,5 +1,6 @@
 .vscode/
-extern/
+extern/*
+!extern/download.sh
 build/
 
 # Prerequisites
