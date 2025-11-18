@@ -15,7 +15,7 @@ extern "C" {
 #define export export_mona_reserved
 #include "BDD/bdd_external.h"
 #undef export
-extern void export_mona_reserved(bdd_manager *bddm, unsigned p, Table *table) asm("export");
+extern void _export(bdd_manager *bddm, unsigned p, Table *table) asm("export");
 }
 
 
@@ -188,85 +188,7 @@ public:
             nfa_impl->f[state] = -1; // sink is reject
         }
 
-        mtrobdd::NodeToNameMap node_to_position_map = mtrobd.get_node_to_position_map();
-        const size_t num_of_nodes = node_to_position_map.size();
-        // set behavior of each state in BDD
-        for (State state = 0; state < mtrobd.get_num_of_roots(); ++state) {
-            mtrobdd::MtBddNodePtr root_node = mtrobd.get_root_node(state);
-            assert(root_node != nullptr);
-            size_t node_position = node_to_position_map[root_node];
-            nfa_impl->q[state] = static_cast<bdd_ptr>(node_position);
-        }
-
-        std::unordered_map<size_t, mamonata::mtrobdd::MtBddNodePtr> position_to_node_map;
-        for (const auto& [node_ptr, node_pos]: node_to_position_map) {
-            assert(position_to_node_map.contains(node_pos) == false);
-            position_to_node_map[node_pos] = node_ptr;
-        }
-
-        BddNode *node_table = (BddNode *) mem_alloc(sizeof(BddNode) * num_of_nodes);
-
-        std::function<bdd_ptr(bdd_ptr)> make_mona_node = [&](bdd_ptr i) -> bdd_ptr {
-            if (node_table[i].p != -1) {
-                return node_table[i].p;
-            }
-
-            if (node_table[i].idx == -1)  /* a leaf */
-            {
-                node_table[i].p = bdd_find_leaf_sequential(nfa_impl->bddm, node_table[i].lo);
-            } else {
-                assert(node_table[i].lo != node_table[i].hi);
-                node_table[i].lo = make_mona_node(node_table[i].lo);
-                node_table[i].hi = make_mona_node(node_table[i].hi);
-                node_table[i].p = bdd_find_node_sequential(nfa_impl->bddm,
-                                                           node_table[i].lo,
-                                                           node_table[i].hi,
-                                                           node_table[i].idx);
-            }
-
-            return node_table[i].p;
-        };
-
-        for (const auto [node_ptr, node_pos]: node_to_position_map) {
-            node_table[node_pos].p = -1; // mark as uncreated
-            if (node_ptr->is_terminal()) {
-                node_table[node_pos].lo = static_cast<unsigned>(node_ptr->value);
-                node_table[node_pos].hi = 0;
-                node_table[node_pos].idx = -1;
-            } else {
-                assert(node_ptr->high != nullptr);
-                assert(node_ptr->low != nullptr);
-                node_table[node_pos].lo = static_cast<bdd_ptr>(node_to_position_map[node_ptr->low]);
-                node_table[node_pos].hi = static_cast<bdd_ptr>(node_to_position_map[node_ptr->high]);
-                node_table[node_pos].idx = static_cast<int>(node_ptr->var_index);
-            }
-        }
-
-        // assert table
-        for (size_t i = 0; i < num_of_nodes; ++i) {
-            assert(node_table[i].p == -1);
-            if (node_table[i].idx == -1) {
-                // terminal
-                assert(node_table[i].hi == 0);
-                assert(node_table[i].lo == position_to_node_map[i]->value);
-                assert(position_to_node_map[i]->is_terminal());
-            } else {
-                // inner node
-                assert(node_table[i].lo != node_table[i].hi);
-                assert(position_to_node_map[i]->var_index == static_cast<mtrobdd::VarIndex>(node_table[i].idx));
-                assert(node_table[i].lo == node_to_position_map[position_to_node_map[i]->low]);
-                assert(node_table[i].hi == node_to_position_map[position_to_node_map[i]->high]);
-                assert(!position_to_node_map[i]->is_terminal());
-            }
-        }
-
-
-        // fill MONA bdd-manager
-        for (State state = 0; state < mtrobd.get_num_of_roots(); ++state) {
-            nfa_impl->q[state] = make_mona_node(nfa_impl->q[state]);
-        }
-
-        mem_free(node_table);
+        mtrobd.to_mona(nfa_impl->bddm, nfa_impl->q);
 
         print_mona();
         mtrobd.print_as_dot();
@@ -285,61 +207,9 @@ public:
             }
         }
 
-        Table *table = tableInit();
-        bdd_prepare_apply1(nfa_impl->bddm);
 
-        // build table of tuples (idx,lo,hi)
-        for (size_t i = 0; i < nfa_impl->ns; i++) {
-            export_mona_reserved(nfa_impl->bddm, nfa_impl->q[i], table);
-        }
-
-        // renumber lo/hi pointers to new table ordering
-        for (size_t i = 0; i < table->noelems; i++) {
-            if (table->elms[i].idx != -1) {
-                table->elms[i].lo = bdd_mark(nfa_impl->bddm, table->elms[i].lo) - 1;
-                table->elms[i].hi = bdd_mark(nfa_impl->bddm, table->elms[i].hi) - 1;
-            }
-        }
-
-
-        mtrobdd::MtRobdd mtrobdd_manager(num_of_vars);
-        // create empty nodes
-        std::unordered_map<bdd_ptr, mtrobdd::MtBddNodePtr> mona_to_mtrobdd_node_map;
-        std::unordered_map<mtrobdd::NodeName, bdd_ptr> mona_to_mtrobdd_root_name_map;
-        for (mtrobdd::NodeName state = 0; state < num_of_states; ++state) {
-            bdd_ptr mona_node_ptr = bdd_mark(nfa_impl->bddm, nfa_impl->q[state]) - 1;
-            mona_to_mtrobdd_root_name_map[state] = mona_node_ptr;
-        }
-
-        // create MTROBDD nodes placeholders
-        for (bdd_ptr i = 0; i < table->noelems; ++i) {
-            mona_to_mtrobdd_node_map[i] = std::make_shared<mtrobdd::MtBddNode>(table->elms[i].idx);
-        }
-
-        // fill MTROBDD nodes
-        for (bdd_ptr i = 0; i < table->noelems; ++i) {
-            mtrobdd::MtBddNodePtr mtrobdd_node = mona_to_mtrobdd_node_map[i];
-            if (table->elms[i].idx == -1) {
-                // terminal node
-                mtrobdd_node->value = static_cast<mtrobdd::NodeValue>(table->elms[i].lo);
-            } else {
-                // inner node
-                mtrobdd_node->low = mona_to_mtrobdd_node_map[table->elms[i].lo];
-                mtrobdd_node->high = mona_to_mtrobdd_node_map[table->elms[i].hi];
-            }
-            mtrobdd_manager.insert_node(mtrobdd_node);
-        }
-
-        // set MTROBDD root nodes
-        for (const auto& [root_name, mona_node_ptr]: mona_to_mtrobdd_root_name_map) {
-            mtrobdd::MtBddNodePtr mtrobdd_root_node = mona_to_mtrobdd_node_map[mona_node_ptr];
-            mtrobdd_manager.promote_to_root(mtrobdd_root_node, root_name);
-        }
-
-
+        mtrobdd::MtRobdd mtrobdd_manager(num_of_vars, nfa_impl->bddm, nfa_impl->q, num_of_states);
         mtrobdd_manager.print_as_dot();
-
-        tableFree(table);
 
         return mata_nfa;
     }

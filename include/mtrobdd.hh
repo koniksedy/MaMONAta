@@ -11,6 +11,8 @@
 #include <filesystem>
 #include <iostream>
 #include <stack>
+#include <algorithm>
+
 
 extern "C" {
 #include "BDD/bdd.h"
@@ -19,7 +21,7 @@ extern "C" {
 #define export export_mona_reserved
 #include "BDD/bdd_external.h"
 #undef export
-extern void export_mona_reserved(bdd_manager *bddm, unsigned p, Table *table) asm("export");
+extern void _export(bdd_manager *bddm, unsigned p, Table *table) asm("export");
 }
 
 /**
@@ -27,6 +29,7 @@ extern void export_mona_reserved(bdd_manager *bddm, unsigned p, Table *table) as
  */
 namespace mamonata::mtrobdd
 {
+
 using VarIndex = int;
 using MtBddNodePtr = std::shared_ptr<struct MtBddNode>;
 using NodeValue = size_t;
@@ -125,6 +128,7 @@ struct NodePtrEqual {
 
 using NodeSet = std::unordered_set<MtBddNodePtr, NodePtrHash, NodePtrEqual>;
 using NameToNodeMap = std::unordered_map<NodeName, MtBddNodePtr>;
+using NameToMonaNodeMap = std::unordered_map<NodeName, bdd_ptr>;
 using NodeToNameMap = std::unordered_map<MtBddNodePtr, NodeName, NodePtrHash, NodePtrEqual>;
 
 // Multi-Terminal Reduced Ordered Binary Decision Diagram (MTROBDD).
@@ -136,6 +140,7 @@ class MtRobdd
 
     /**
      * Converts the MTROBDD to DOT format for visualization.
+     *
      * @param os Output stream to write the DOT representation to.
      */
     void to_dot(std::ostream& os) const;
@@ -145,30 +150,45 @@ public:
 
     /**
      * Constructor.
+     *
      * @param num_of_vars Number of variables in the MTROBDD.
      */
     explicit MtRobdd(size_t num_of_vars) : num_of_vars(num_of_vars), nodes(), root_nodes_map() {}
 
     /**
      * Constructor from MONA BDD manager.
+     *
      * @param num_of_vars Number of variables in the MTROBDD.
      * @param bddm Pointer to the MONA BDD manager to convert from.
+     * @param root_behavior_ptrs Array of root node pointers.
+     *                           Note: The caller is responsible for allocating and freeing this array.
      */
-    explicit MtRobdd(size_t num_of_vars, bdd_manager* bddm) : num_of_vars(num_of_vars), nodes(), root_nodes_map() {
-        from_mona(bddm);
+    explicit MtRobdd(size_t num_of_vars, bdd_manager* bddm, bdd_ptr *root_behavior_ptrs, size_t num_of_roots)
+        : num_of_vars(0), nodes(), root_nodes_map() {
+        from_mona(num_of_vars, bddm, root_behavior_ptrs, num_of_roots);
     }
 
     /**
      * Converts from MONA BDD manager to MTROBDD.
+     *
+     * @param num_of_vars Number of variables in the MTROBDD.
      * @param bddm Pointer to the MONA BDD manager to convert from.
+     * @param root_behavior_ptrs Array of root node pointers.
+     *                           Note: The caller is responsible for allocating and freeing this array.
+     * @param num_of_roots Number of root nodes.
+     *
+     * @return this
      */
-    void from_mona(bdd_manager* bddm);
+    MtRobdd& from_mona(size_t num_of_vars, bdd_manager* bddm, bdd_ptr *root_behavior_ptrs, size_t num_of_roots);
 
     /**
      * Converts the MTROBDD to MONA BDD manager.
+     *
      * @param bddm Pointer to the MONA BDD manager to convert to.
-     */
-    void to_mona(bdd_manager* bddm) const;
+     * @param root_behavior_ptrs Array to store root node pointers.
+     *                           Note: The caller is responsible for allocating and freeing this array.
+    */
+    void to_mona(bdd_manager* bddm, bdd_ptr* root_behavior_ptrs) const;
 
     // Returns number of variables.
     size_t get_num_of_vars() const {
@@ -304,7 +324,7 @@ public:
     }
 
     /**
-     * Trims the MTROBDD by removing unreachable/unused nodes.
+     * Trims the MTROBDD by removing nodes that are not reachable from any root node.
      *
      * @return this
      */
@@ -344,16 +364,6 @@ public:
      */
     void print_as_dot() const {
         to_dot(std::cout);
-    }
-
-
-    NodeToNameMap get_node_to_position_map() const {
-        NodeToNameMap node_to_position_map;
-        size_t position = 0;
-        for (const auto& node : nodes) {
-            node_to_position_map[node] = position++;
-        }
-        return node_to_position_map;
     }
 };
 
