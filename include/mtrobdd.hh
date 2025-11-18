@@ -18,7 +18,7 @@ extern "C" {
 #include "BDD/bdd.h"
 #include "Mem/mem.h"
 // avoid name clash with C++ keyword
-#define export export_mona_reserved
+#define export _export
 #include "BDD/bdd_external.h"
 #undef export
 extern void _export(bdd_manager *bddm, unsigned p, Table *table) asm("export");
@@ -143,7 +143,7 @@ class MtRobdd
      *
      * @param os Output stream to write the DOT representation to.
      */
-    void to_dot(std::ostream& os) const;
+    void _print_as_dot(std::ostream& os) const;
 
 public:
     MtRobdd() : num_of_vars(0), nodes(), root_nodes_map() {}
@@ -355,7 +355,7 @@ public:
      */
     void save_as_dot(const std::filesystem::path& file_path) const {
         std::ofstream ofs(file_path);
-        to_dot(ofs);
+        _print_as_dot(ofs);
         ofs.close();
     }
 
@@ -363,7 +363,7 @@ public:
      * Prints the MTROBDD as DOT format to standard output.
      */
     void print_as_dot() const {
-        to_dot(std::cout);
+        _print_as_dot(std::cout);
     }
 };
 

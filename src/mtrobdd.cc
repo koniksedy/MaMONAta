@@ -281,7 +281,7 @@ MtRobdd& MtRobdd::make_complete(const NodeValue sink_value, const bool complete_
     return *this;
 }
 
-void MtRobdd::to_dot(std::ostream& os) const {
+void MtRobdd::_print_as_dot(std::ostream& os) const {
     // Group nodes by variable index
     std::unordered_map<VarIndex, std::vector<MtBddNodePtr>> levels;
     for (const auto& node : nodes) {

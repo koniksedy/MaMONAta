@@ -7,12 +7,6 @@ using MataNfa = mamonata::mata::nfa::Nfa;
 using MonaNfa = mamonata::mona::nfa::Nfa;
 
 
-extern "C" {
-#include "BDD/bdd.h"
-#include "DFA/dfa.h"
-#include "Mem/mem.h"
-}
-
 int main(int argc, char *argv[]) {
 
     MataNfa mata_nfa;

@@ -327,6 +327,17 @@ public:
     }
 
     /**
+     * @brief Checks if this NFA is equivalent to another NFA.
+     *
+     * @param other NFA to compare with.
+     *
+     * @return true if the NFAs are equivalent, false otherwise.
+     */
+    bool are_equivalent(const Nfa& other) const {
+        return mata::nfa::are_equivalent(nfa_impl, other.nfa_impl);
+    }
+
+    /**
      * @brief Trims the NFA by removing unreachable and non-coaccessible states.
      *
      * @return Reference to this NFA.
