@@ -21,7 +21,7 @@ extern void export_mona_reserved(bdd_manager *bddm, unsigned p, Table *table) as
 
 namespace mamonata::mona::nfa {
 
-using State = mamonata::mtrobdd::Value;
+using State = mamonata::mtrobdd::NodeValue;
 using StateVector = std::vector<State>;
 using Symbol = size_t;
 using EncodeDict = std::unordered_map<Symbol, mamonata::mtrobdd::BitVector>;
@@ -162,12 +162,12 @@ public:
                         transition_code[num_of_alphabet_vars + j] = nondet_code[j];
                     }
                     // Add transition MTORBDD
-                    mtrobd.insert_path_from_root(src, transition_code, targets[i]);
+                    mtrobd.insert_bit_string_from_root(src, transition_code, targets[i]);
                 }
             }
         }
         // Reduce MTROBDD to canonical form
-        mtrobd.trim().remove_redundant_tests().complete(input.num_of_states());
+        mtrobd.trim().remove_redundant_tests().make_complete(input.num_of_states());
         // mtrobd.print_as_dot();
 
 
@@ -192,13 +192,13 @@ public:
         const size_t num_of_nodes = node_to_position_map.size();
         // set behavior of each state in BDD
         for (State state = 0; state < mtrobd.get_num_of_roots(); ++state) {
-            mtrobdd::BddNodePtr root_node = mtrobd.get_root_node(state);
+            mtrobdd::MtBddNodePtr root_node = mtrobd.get_root_node(state);
             assert(root_node != nullptr);
             size_t node_position = node_to_position_map[root_node];
             nfa_impl->q[state] = static_cast<bdd_ptr>(node_position);
         }
 
-        std::unordered_map<size_t, mamonata::mtrobdd::BddNodePtr> position_to_node_map;
+        std::unordered_map<size_t, mamonata::mtrobdd::MtBddNodePtr> position_to_node_map;
         for (const auto& [node_ptr, node_pos]: node_to_position_map) {
             assert(position_to_node_map.contains(node_pos) == false);
             position_to_node_map[node_pos] = node_ptr;
@@ -253,7 +253,7 @@ public:
             } else {
                 // inner node
                 assert(node_table[i].lo != node_table[i].hi);
-                assert(position_to_node_map[i]->var_index == static_cast<mtrobdd::Index>(node_table[i].idx));
+                assert(position_to_node_map[i]->var_index == static_cast<mtrobdd::VarIndex>(node_table[i].idx));
                 assert(node_table[i].lo == node_to_position_map[position_to_node_map[i]->low]);
                 assert(node_table[i].hi == node_to_position_map[position_to_node_map[i]->high]);
                 assert(!position_to_node_map[i]->is_terminal());
@@ -304,7 +304,7 @@ public:
 
         mtrobdd::MtRobdd mtrobdd_manager(num_of_vars);
         // create empty nodes
-        std::unordered_map<bdd_ptr, mtrobdd::BddNodePtr> mona_to_mtrobdd_node_map;
+        std::unordered_map<bdd_ptr, mtrobdd::MtBddNodePtr> mona_to_mtrobdd_node_map;
         std::unordered_map<mtrobdd::NodeName, bdd_ptr> mona_to_mtrobdd_root_name_map;
         for (mtrobdd::NodeName state = 0; state < num_of_states; ++state) {
             bdd_ptr mona_node_ptr = bdd_mark(nfa_impl->bddm, nfa_impl->q[state]) - 1;
@@ -313,15 +313,15 @@ public:
 
         // create MTROBDD nodes placeholders
         for (bdd_ptr i = 0; i < table->noelems; ++i) {
-            mona_to_mtrobdd_node_map[i] = std::make_shared<mtrobdd::BddNode>(table->elms[i].idx);
+            mona_to_mtrobdd_node_map[i] = std::make_shared<mtrobdd::MtBddNode>(table->elms[i].idx);
         }
 
         // fill MTROBDD nodes
         for (bdd_ptr i = 0; i < table->noelems; ++i) {
-            mtrobdd::BddNodePtr mtrobdd_node = mona_to_mtrobdd_node_map[i];
+            mtrobdd::MtBddNodePtr mtrobdd_node = mona_to_mtrobdd_node_map[i];
             if (table->elms[i].idx == -1) {
                 // terminal node
-                mtrobdd_node->value = static_cast<mtrobdd::Value>(table->elms[i].lo);
+                mtrobdd_node->value = static_cast<mtrobdd::NodeValue>(table->elms[i].lo);
             } else {
                 // inner node
                 mtrobdd_node->low = mona_to_mtrobdd_node_map[table->elms[i].lo];
@@ -332,7 +332,7 @@ public:
 
         // set MTROBDD root nodes
         for (const auto& [root_name, mona_node_ptr]: mona_to_mtrobdd_root_name_map) {
-            mtrobdd::BddNodePtr mtrobdd_root_node = mona_to_mtrobdd_node_map[mona_node_ptr];
+            mtrobdd::MtBddNodePtr mtrobdd_root_node = mona_to_mtrobdd_node_map[mona_node_ptr];
             mtrobdd_manager.promote_to_root(mtrobdd_root_node, root_name);
         }
 

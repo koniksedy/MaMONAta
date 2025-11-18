@@ -2,36 +2,36 @@
 
 namespace mamonata::mtrobdd
 {
-    BddNodePtr MtRobdd::insert_path(BddNodePtr src, const Index var_index, const BitVector& path, const Value value) {
-        assert(!path.empty());
-        if (var_index == static_cast<Index>(num_of_vars)) {
-            return create_terminal_node(value);
+    MtBddNodePtr MtRobdd::insert_bit_string(MtBddNodePtr src_node, const VarIndex var_index, const BitVector& bit_string, const NodeValue terminal_value) {
+        assert(!bit_string.empty());
+        if (var_index == static_cast<VarIndex>(num_of_vars)) {
+            return create_terminal_node(terminal_value);
         }
 
-        Bit current_bit = path[var_index];
+        Bit current_bit = bit_string[var_index];
 
         // If the source node is null, we need to create new nodes along the path
-        if (src == nullptr) {
+        if (src_node == nullptr) {
             if (current_bit == LO) {
-                BddNodePtr low_child = insert_path(nullptr, var_index + 1, path, value);
+                MtBddNodePtr low_child = insert_bit_string(nullptr, var_index + 1, bit_string, terminal_value);
                 return create_node(var_index, low_child, nullptr);
             }
-            BddNodePtr high_child = insert_path(nullptr, var_index + 1, path, value);
+            MtBddNodePtr high_child = insert_bit_string(nullptr, var_index + 1, bit_string, terminal_value);
             return create_node(var_index, nullptr, high_child);
         }
 
         // The source node exists, we need to traverse the existing path
-        BddNodePtr low_child = src->low;
-        BddNodePtr high_child = src->high;
+        MtBddNodePtr low_child = src_node->low;
+        MtBddNodePtr high_child = src_node->high;
         if (current_bit == LO) {
-            low_child = insert_path(src->low, var_index + 1, path, value);
+            low_child = insert_bit_string(src_node->low, var_index + 1, bit_string, terminal_value);
         } else {
-            high_child = insert_path(src->high, var_index + 1, path, value);
+            high_child = insert_bit_string(src_node->high, var_index + 1, bit_string, terminal_value);
         }
 
-        if (low_child == src->low && high_child == src->high) {
+        if (low_child == src_node->low && high_child == src_node->high) {
             // No changes were made, return the original node.
-            return src;
+            return src_node;
         }
 
         return create_node(var_index, low_child, high_child);
@@ -40,14 +40,14 @@ namespace mamonata::mtrobdd
     MtRobdd& MtRobdd::trim() {
         NodeSet usefull_nodes;
 
-        std::stack<BddNodePtr> worklist;
+        std::stack<MtBddNodePtr> worklist;
         for (const auto& [name, root_node] : root_nodes_map) {
             worklist.push(root_node);
             usefull_nodes.insert(root_node);
         }
 
         while (!worklist.empty()) {
-            BddNodePtr current_node = worklist.top();
+            MtBddNodePtr current_node = worklist.top();
             worklist.pop();
 
             if (current_node->low != nullptr && !usefull_nodes.contains(current_node->low)) {
@@ -66,9 +66,9 @@ namespace mamonata::mtrobdd
 
     MtRobdd& MtRobdd::remove_redundant_tests() {
         NodeSet new_nodes;
-        NodeMap new_root_nodes_map;
+        NameToNodeMap new_root_nodes_map;
 
-        std::function<BddNodePtr(const BddNodePtr)> remove_redundant_rec = [&](const BddNodePtr node) -> BddNodePtr {
+        std::function<MtBddNodePtr(const MtBddNodePtr)> remove_redundant_rec = [&](const MtBddNodePtr node) -> MtBddNodePtr {
             if (node == nullptr) {
                 return node;
             }
@@ -80,14 +80,14 @@ namespace mamonata::mtrobdd
                 return node;
             }
 
-            BddNodePtr low_child = remove_redundant_rec(node->low);
-            BddNodePtr high_child = remove_redundant_rec(node->high);
+            MtBddNodePtr low_child = remove_redundant_rec(node->low);
+            MtBddNodePtr high_child = remove_redundant_rec(node->high);
 
             if (low_child != nullptr && low_child == high_child) {
                 return low_child;
             }
 
-            BddNodePtr new_node = create_node(node->var_index, low_child, high_child, node->value);
+            MtBddNodePtr new_node = create_node(node->var_index, low_child, high_child, node->value);
             if (!new_nodes.contains(new_node)) {
                 new_nodes.insert(new_node);
             }
@@ -95,7 +95,7 @@ namespace mamonata::mtrobdd
         };
 
         for (const auto& [name, root_node] : root_nodes_map) {
-            BddNodePtr new_root = remove_redundant_rec(root_node);
+            MtBddNodePtr new_root = remove_redundant_rec(root_node);
             new_root_nodes_map[name] = new_root;
         }
         nodes = std::move(new_nodes);
@@ -104,8 +104,8 @@ namespace mamonata::mtrobdd
         return *this;
     }
 
-    MtRobdd& MtRobdd::complete(const Value sink_value, const bool complete_terminal_nodes) {
-        BddNodePtr terminal_sink = std::make_shared<BddNode>(TERMINAL_INDEX, nullptr, nullptr, sink_value);
+    MtRobdd& MtRobdd::make_complete(const NodeValue sink_value, const bool complete_terminal_nodes) {
+        MtBddNodePtr terminal_sink = std::make_shared<MtBddNode>(TERMINAL_INDEX, nullptr, nullptr, sink_value);
         bool used_sink = false;
 
         for (const auto& node : nodes) {
@@ -138,7 +138,7 @@ namespace mamonata::mtrobdd
 
     void MtRobdd::to_dot(std::ostream& os) const {
         // Group nodes by variable index
-        std::unordered_map<Index, std::vector<BddNodePtr>> levels;
+        std::unordered_map<VarIndex, std::vector<MtBddNodePtr>> levels;
         for (const auto& node : nodes) {
             levels[node->var_index].push_back(node);
         }
