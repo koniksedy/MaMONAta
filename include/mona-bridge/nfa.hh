@@ -207,7 +207,6 @@ public:
             }
         }
 
-
         mtrobdd::MtRobdd mtrobdd_manager(num_of_vars, nfa_impl->bddm, nfa_impl->q, num_of_states);
         mtrobdd_manager.print_as_dot();
 
