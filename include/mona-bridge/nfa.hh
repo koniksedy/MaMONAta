@@ -44,6 +44,9 @@ using DecodeDict = std::unordered_map<mamonata::mtrobdd::BitVector, Symbol, mamo
  * Obviously, we cannot operate on such pseudo-nondeterministic automata in MONA directly.
  * We allways convert them to deterministic automata first by projecting out the nondeterminism bits.
  *
+ * Example of mona format:
+ * TODO: add example
+ *
  * @warning MONA allows only deterministic complete automata with binary-encoded symbols.
  *          Read the class documentation for details.
  */
@@ -128,6 +131,8 @@ public:
         }
     }
 
+    Nfa& load(const std::string& file_path);
+
     /**
      * @brief Initializes the MONA NFA by converting from a Mata NFA.
      *
@@ -145,7 +150,7 @@ public:
     mamonata::mata::nfa::Nfa to_mata() const;
 
     /**
-     * @brief Saves the MONA NFA to a file.
+     * @brief Saves the MONA NFA to a file
      *
      * @param file_path Output file path.
      */

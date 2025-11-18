@@ -10,6 +10,29 @@
 // around such function calls. Additionaly, the swap
 // operation is generally cheaper than move operation.
 
+namespace {
+
+/**
+ * @brief Converts a decimal value to its binary representation as a BitVector.
+ *
+ * @param decimal_value Decimal value to be converted.
+ * @param num_of_bits Number of bits in the resulting BitVector.
+ *
+ * @return BitVector Binary representation of the decimal value.
+ */
+mamonata::mtrobdd::BitVector get_binary_code(size_t decimal_value, size_t num_of_bits) {
+    mamonata::mtrobdd::BitVector code(num_of_bits, mamonata::mtrobdd::LO);
+    for (size_t i = 0; i < num_of_bits; ++i) {
+        if (decimal_value % 2 == 1) {
+            code[num_of_bits - i - 1] = mamonata::mtrobdd::HI;
+        }
+        decimal_value /= 2;
+    }
+    return code;
+};
+
+}
+
 namespace mamonata::mona::nfa {
 
 void Nfa::_print_mona(const std::string& file_path) const {
@@ -23,10 +46,11 @@ void Nfa::_print_mona(const std::string& file_path) const {
     for (size_t i = 0; i < num_of_vars; ++i) {
         // safe upper bound for decimal digits of size_t
         const size_t max_digits = std::numeric_limits<size_t>::digits10 + 1;
-        // 'x' + digits + terminating NUL
+        // 'A/N' + digits + terminating NUL
+        // 'A' for alphabet vars, 'N' for nondet vars
         const size_t buf_size = 1 + max_digits + 1;
         vars[i] = new char[buf_size];
-        vars[i][0] = 'x';
+        vars[i][0] = (i < num_of_alphabet_vars) ? 'A' : 'N';
         // leave one byte for terminating NULL
         // to_chars writes up to (end) exclusive
         auto res = std::to_chars(vars[i] + 1, vars[i] + buf_size - 1, i);
@@ -50,19 +74,72 @@ void Nfa::_print_mona(const std::string& file_path) const {
     delete[] orders;
 }
 
-Nfa& Nfa::from_mata(const mamonata::mata::nfa::Nfa& input) {
-    // Helper lambda to get binary code (big-endian) for a decimal value.
-    auto get_binary_code = [](size_t decimal_value, size_t num_of_bits) {
-        mamonata::mtrobdd::BitVector code(num_of_bits, mamonata::mtrobdd::LO);
-        for (size_t i = 0; i < num_of_bits; ++i) {
-            if (decimal_value % 2 == 1) {
-                code[num_of_bits - i - 1] = mamonata::mtrobdd::HI;
-            }
-            decimal_value /= 2;
-        }
-        return code;
-    };
+Nfa& Nfa::load(const std::string& file_path){
+    char **names;
+    int *orders;
+    // Load MONA DFA from file
+    nfa_impl = dfaImport(const_cast<char*>(file_path.c_str()), &names, &orders);
 
+    // Count variable types
+    // 'A' - alphabet variable
+    // 'N' - nondeterminism variable
+    size_t alphaber_var_count = 0;
+    size_t nondet_var_count = 0;
+    size_t total_var_count = 0;
+    bool in_nondet_section = false;
+    bool unknown_var_encoding_found = false;
+    for (size_t i = 0; names[i] != nullptr; ++i) {
+        char var_type = names[i][0];
+        if (var_type == 'A') {
+            if (in_nondet_section) {
+                // Alphabet variable after nondet variable - unexpected
+                unknown_var_encoding_found = true;
+            }
+            alphaber_var_count++;
+        } else if (var_type == 'N') {
+            in_nondet_section = true;
+            nondet_var_count++;
+        } else {
+            unknown_var_encoding_found = true;
+        }
+        total_var_count++;
+    }
+
+    // Set nondeterminism level and variable counts
+    // It there are unexpected variable names, assume deterministic automaton
+    if (unknown_var_encoding_found) {
+        nondeterminism_level = 1;
+        num_of_alphabet_vars = total_var_count;
+        num_of_nondet_vars = 0;
+        num_of_vars = total_var_count;
+    } else {
+        nondeterminism_level = (nondet_var_count > 0) ? (1 << nondet_var_count) : 1;
+        num_of_alphabet_vars = alphaber_var_count;
+        num_of_nondet_vars = nondet_var_count;
+        num_of_vars = total_var_count;
+    }
+
+    // Generate alphabet symbols from 0 to 2^(num_of_alphabet_vars)-1
+    alphabet_size = 1 << num_of_alphabet_vars;
+    alphabet_encode_dict.clear();
+    alphabet_decode_dict.clear();
+    for (size_t a = 0; a < alphabet_size; ++a) {
+        mamonata::mtrobdd::BitVector code = get_binary_code(a, num_of_alphabet_vars);
+        alphabet_encode_dict[a] = code;
+        alphabet_decode_dict[code] = a;
+    }
+
+    // Clean up
+    for (size_t i = 0; i < total_var_count; ++i) {
+        delete[] names[i];
+    }
+    delete[] names;
+    delete[] orders;
+
+    return *this;
+}
+
+Nfa& Nfa::from_mata(const mamonata::mata::nfa::Nfa& input) {
     // Ensure single initial state. Don't modify input NFA.
     mamonata::mata::nfa::Nfa mata_nfa(input);
     if (mata_nfa.get_initial_states().size() > 1) {
