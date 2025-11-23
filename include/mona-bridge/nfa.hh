@@ -252,6 +252,13 @@ public:
     }
 
     /**
+     * @brief Determinizes the NFA by projecting out nondeterminism bits.
+     *
+     * @return Reference to this.
+     */
+    Nfa& determinize();
+
+    /**
      * @brief Minimizes the automaton using MONA's DFA minimization.
      *
      * @return Reference to this.

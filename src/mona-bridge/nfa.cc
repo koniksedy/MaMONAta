@@ -283,6 +283,17 @@ mamonata::mata::nfa::Nfa Nfa::to_mata() const {
     return mata_nfa;
 }
 
+Nfa& Nfa::determinize() {
+    DFA* tmp = nfa_impl;
+    TIME(
+        for (size_t i = 0; i < num_of_nondet_vars; ++i) {
+            tmp = dfaProject(tmp, static_cast<unsigned>(num_of_vars - i - 1));
+        }
+    );
+    std::swap(nfa_impl, tmp);
+    return *this;
+}
+
 Nfa& Nfa::minimize() {
     TIME(auto tmp { dfaMinimize(nfa_impl) });
     std::swap(nfa_impl, tmp);

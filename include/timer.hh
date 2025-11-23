@@ -6,6 +6,8 @@
 #include <string>
 #include <unordered_map>
 
+#define TIMING_ENABLED
+
 // Enable timing only if TIMING_ENABLED is defined
 #ifdef TIMING_ENABLED
 // Measure execution time of a code line.
