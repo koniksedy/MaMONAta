@@ -1,6 +1,7 @@
 #ifndef MAMONATA_MATA_NFA_HH_
 #define MAMONATA_MATA_NFA_HH_
 
+#include <fstream>
 #include <vector>
 #include <numeric>
 #include "mata/nfa/nfa.hh"
@@ -282,8 +283,33 @@ public:
      *
      * @return Reference to this NFA.
      */
-    Nfa& load(const std::filesystem::path& file_path) {
-        nfa_impl = mata::nfa::builder::parse_from_mata(file_path);
+    Nfa& load(const std::string& file_path) {
+        // Open the file
+        std::fstream fs(file_path, std::ios::in);
+        if (!fs.is_open()) {
+            throw std::runtime_error("Could not open file: " + file_path);
+        }
+
+        mata::parser::Parsed parsed;
+        try {
+            // Try to parse the file
+            parsed = mata::parser::parse_mf(fs, true);
+            fs.close();
+
+            // Create IntermediateAut
+            std::vector<mata::IntermediateAut> inter_auts = mata::IntermediateAut::parse_from_mf(parsed);
+            if (inter_auts.size() != 1 || !inter_auts[0].is_nfa()) {
+                throw std::runtime_error("Only single NFA automaton is supported in Mata files.");
+            }
+
+            // Build NFA from IntermediateAut
+            nfa_impl = mata::nfa::builder::construct(inter_auts[0]);
+        } catch (const std::exception& e) {
+            fs.close();
+            throw std::runtime_error("Error parsing Mata file: " + std::string(e.what()));
+        }
+
+        // nfa_impl = mata::nfa::builder::parse_from_mata(file_path);
         return *this;
     }
 

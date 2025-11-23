@@ -35,7 +35,30 @@ mamonata::mtrobdd::BitVector get_binary_code(size_t decimal_value, size_t num_of
 
 namespace mamonata::mona::nfa {
 
-void Nfa::_print_mona(const std::string& file_path) const {
+void Nfa::generate_alphabet(const size_t size) {
+    alphabet_size = size;
+    alphabet_encode_dict.clear();
+    alphabet_decode_dict.clear();
+    for (size_t a = 0; a < alphabet_size; ++a) {
+        mamonata::mtrobdd::BitVector code = get_binary_code(a, num_of_alphabet_vars);
+        alphabet_encode_dict[a] = code;
+        alphabet_decode_dict[code] = a;
+    }
+}
+
+void Nfa::update_alphabet(const Nfa& other) {
+    assert(alphabet_encode_dict.size() == alphabet_decode_dict.size());
+    for (const auto& [code, symbol] : other.alphabet_decode_dict) {
+        assert(alphabet_encode_dict.size() == alphabet_decode_dict.size());
+        if (!alphabet_decode_dict.contains(code)) {
+            assert(!alphabet_encode_dict.contains(symbol));
+            alphabet_decode_dict[code] = symbol;
+            alphabet_encode_dict[symbol] = code;
+        }
+    }
+}
+
+void Nfa::_print(const std::string& file_path) const {
 
     // Prepare order and vars arrays for MONA export function
     char *orders = new char[num_of_vars];
@@ -139,7 +162,7 @@ Nfa& Nfa::load(const std::string& file_path){
     return *this;
 }
 
-Nfa& Nfa::from_mata(const mamonata::mata::nfa::Nfa& input) {
+Nfa& Nfa::from_mata(const mamonata::mata::nfa::Nfa& input, const std::optional<MataSymbolVector>& alphabet_order) {
     // Ensure single initial state. Don't modify input NFA.
     mamonata::mata::nfa::Nfa mata_nfa(input);
     if (mata_nfa.get_initial_states().size() > 1) {
@@ -156,7 +179,8 @@ Nfa& Nfa::from_mata(const mamonata::mata::nfa::Nfa& input) {
     }
 
     // Determine alphabet size and number of alphabet bits.
-    MataSymbolVector alphabet = mata_nfa.get_used_symbols();
+    MataSymbolVector alphabet = alphabet_order.has_value() ? *alphabet_order
+                                                           : mata_nfa.get_used_symbols();
     alphabet_size = alphabet.size();
     assert(alphabet_size > 0);
     num_of_alphabet_vars = static_cast<size_t>(std::ceil(std::log2(static_cast<double>(alphabet_size))));
@@ -198,8 +222,6 @@ Nfa& Nfa::from_mata(const mamonata::mata::nfa::Nfa& input) {
 
     // Reduce MTROBDD to canonical form.
     mtrobdd_manager.trim().remove_redundant_tests().make_complete(input.num_of_states());
-    // mtrobd.print_as_dot();   // DEBUG
-
 
     // Construct MONA DFA.
     nfa_impl = dfaMake(static_cast<int>(mtrobdd_manager.get_num_of_roots()));
@@ -221,9 +243,6 @@ Nfa& Nfa::from_mata(const mamonata::mata::nfa::Nfa& input) {
     // Export MTROBDD to MONA representation.
     mtrobdd_manager.to_mona(nfa_impl->bddm, nfa_impl->q);
 
-    print_mona();   // DEBUG
-    mtrobdd_manager.print_as_dot();  // DEBUG
-
     return *this;
 }
 
@@ -234,7 +253,7 @@ mamonata::mata::nfa::Nfa Nfa::to_mata() const {
 
     // Set initial and final states
     mata_nfa.add_initial_state(static_cast<State>(nfa_impl->s));
-    for (size_t state = 0; state < num_of_states; ++state) {
+    for (State state = 0; state < num_of_states; ++state) {
         if (nfa_impl->f[state] == 1) {
             mata_nfa.add_final_state(state);
         }
@@ -243,9 +262,23 @@ mamonata::mata::nfa::Nfa Nfa::to_mata() const {
     // Build MTROBDD from MONA representation
     mtrobdd::MtRobdd mtrobdd_manager(num_of_vars, nfa_impl->bddm, nfa_impl->q, num_of_states);
 
-    mtrobdd_manager.print_as_dot(); // DEBUG
-
-    // TODO: Extract transitions from MTROBDD + decoding
+    // Extract transitions
+    for (mtrobdd::NodeName src = 0; src < num_of_states; ++src) {
+        mtrobdd::MtBddNodePtr root_node = mtrobdd_manager.get_root_node(src);
+        assert(root_node != nullptr);
+        for (const auto& [bit_string, target_value] : mtrobdd_manager.get_all_bit_strings_from_root_node(root_node)) {
+            try {
+                mata_nfa.add_transition(
+                    static_cast<State>(src),
+                    decode_symbol(bit_string),
+                    static_cast<State>(target_value)
+                );
+            } catch (const std::out_of_range& e) {
+                // Symbol not found in decoding dictionary - skip transition
+                continue;
+            }
+        }
+    }
 
     return mata_nfa;
 }

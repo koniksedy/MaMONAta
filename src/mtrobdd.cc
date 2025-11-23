@@ -171,6 +171,88 @@ MtBddNodePtr MtRobdd::insert_bit_string(const MtBddNodePtr src_node, const VarIn
     return create_node(var_index, low_child, high_child);
 }
 
+std::vector<std::pair<BitVector, NodeValue>> MtRobdd::get_all_bit_strings_from_root_node(const MtBddNodePtr root_node) const {
+    // Helper function to calculate transition length.
+    auto get_transition_length = [&](const VarIndex src_idx, const VarIndex tgt_idx) -> size_t {
+        if (tgt_idx == TERMINAL_INDEX) {
+            return num_of_vars - src_idx;
+        }
+        return tgt_idx - src_idx;
+    };
+
+    // Recursive function to expand bit strings with don't cares into all combinations.
+    std::function<std::vector<BitVector>(const BitVector&, size_t)> expand_with_dont_cares =
+    [&](const BitVector& prefix, const size_t dont_care_count) -> std::vector<BitVector> {
+        if (dont_care_count == 0) {
+            return { prefix };
+        }
+
+        std::vector<BitVector> result;
+
+        // Expand with LO
+        BitVector with_lo = prefix;
+        with_lo.push_back(LO);
+        auto lo_expanded = expand_with_dont_cares(with_lo, dont_care_count - 1);
+        result.insert(result.end(), lo_expanded.begin(), lo_expanded.end());
+
+        // Expand with HI
+        BitVector with_hi = prefix;
+        with_hi.push_back(HI);
+        auto hi_expanded = expand_with_dont_cares(with_hi, dont_care_count - 1);
+        result.insert(result.end(), hi_expanded.begin(), hi_expanded.end());
+
+        return result;
+    };
+
+    std::vector<std::pair<BitVector, NodeValue>> result;
+    std::stack<std::tuple<MtBddNodePtr, BitVector>> worklist;
+
+    // Initialize worklist with root node and possible prefixes
+    const size_t first_transition_length = get_transition_length(0, root_node->var_index);
+    for (const auto& expanded_prefix : expand_with_dont_cares({}, first_transition_length)) {
+        worklist.push({ root_node, expanded_prefix });
+    }
+
+    while (!worklist.empty()) {
+        auto [current_node, current_prefix] = worklist.top();
+        worklist.pop();
+
+        // If terminal node, record the bit string and value
+        // Stop further descending
+        if (current_node->is_terminal()) {
+            result.emplace_back(current_prefix, current_node->value);
+            continue;
+        }
+
+        // Process LOW child
+        if (current_node->low != nullptr) {
+            size_t transition_length = get_transition_length(current_node->var_index, current_node->low->var_index);
+            assert(transition_length > 0);
+            BitVector current_base = current_prefix;
+            // Append LO decision bit
+            current_base.push_back(LO);
+            // Process potential don't care bits
+            for (const auto& expanded_prefix : expand_with_dont_cares(current_base, transition_length - 1)) {
+                worklist.push({ current_node->low, expanded_prefix });
+            }
+        }
+        // Process HIGH child
+        if (current_node->high != nullptr) {
+            size_t transition_length = get_transition_length(current_node->var_index, current_node->high->var_index);
+            assert(transition_length > 0);
+            BitVector current_base = current_prefix;
+            // Append HI decision bit
+            current_base.push_back(HI);
+            // Process potential don't care bits
+            for (const auto& expanded_prefix : expand_with_dont_cares(current_base, transition_length - 1)) {
+                worklist.push({ current_node->high, expanded_prefix });
+            }
+        }
+    }
+
+    return result;
+}
+
 MtRobdd& MtRobdd::trim() {
     NodeSet usefull_nodes;
 

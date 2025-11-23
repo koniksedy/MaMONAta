@@ -11,9 +11,11 @@ int main(int argc, char *argv[]) {
 
     MataNfa mata_nfa;
     mata_nfa.load(std::filesystem::path("../atm1.mata"));
-    std::cout << "Loaded MaTA NFA from ../atm1.mata" << std::endl;
+    mata_nfa.print_as_dot();
     MonaNfa mona_nfa(mata_nfa);
+    mona_nfa.print();
     MataNfa converted_mata_nfa = mona_nfa.to_mata();
+    converted_mata_nfa.trim().print_as_dot();
 
     // MtRobdd mt_roBDD(3);
     // mt_roBDD.insert_path_from_root(1, {LO, LO, LO}, 2);

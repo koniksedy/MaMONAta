@@ -6,6 +6,7 @@
 #include "mata-bridge/nfa.hh"
 #include <charconv>
 #include <limits>
+#include <optional>
 #include "mtrobdd.hh"
 
 // Avoid macro collisions with TRUE/FALSE from MONA headers
@@ -81,7 +82,6 @@ private:
      * @return Symbol Decoded symbol.
      */
     Symbol decode_symbol(const mamonata::mtrobdd::BitVector& code) const {
-        assert(alphabet_decode_dict.contains(code));
         return alphabet_decode_dict.at(code);
     }
 
@@ -91,7 +91,7 @@ private:
      * @param file_path Output file path. If empty, prints to standard output.
      *
      */
-    void _print_mona(const std::string &file_path = "") const;
+    void _print(const std::string &file_path = "") const;
 
 public:
     Nfa()
@@ -108,10 +108,11 @@ public:
      * @brief Constructs a new Nfa object from a Mata NFA.
      *
      * @param mata_nfa Mata NFA to be converted.
+     * @param alphabet_order Optional order of symbols in the alphabet.
      *
      * @return Nfa Newly constructed Nfa object.
      */
-    explicit Nfa(const mata::nfa::Nfa& mata_nfa)
+    explicit Nfa(const mata::nfa::Nfa& mata_nfa, const std::optional<MataSymbolVector>& alphabet_order = std::nullopt)
         : nfa_impl(nullptr),
           num_of_vars(0),
           num_of_alphabet_vars(0),
@@ -121,7 +122,7 @@ public:
           alphabet_encode_dict(),
           alphabet_decode_dict()
     {
-        from_mata(mata_nfa);
+        from_mata(mata_nfa, alphabet_order);
     }
 
     ~Nfa() {
@@ -131,19 +132,46 @@ public:
         }
     }
 
+    /**
+     * @brief Generates the alphabet symbols and their encodings.
+     *
+     * @param size Size of the alphabet to be generated.
+     */
+    void generate_alphabet(const size_t size);
+
+    /**
+     * @brief Updates the alphabet decoding to include codes from another NFA.
+     * Encodings that already exist are preserved (no updated).
+     *
+     * @warning User must ensure that there are no conflicting encodings between the two NFAs.
+     *
+     * @param other NFA whose alphabet symbols are to be included.
+     */
+    void update_alphabet(const Nfa& other);
+
+    /**
+     * @brief Loads a MONA NFA from a file.
+     *
+     * @param file_path Input file path.
+     *
+     * @return this
+     */
     Nfa& load(const std::string& file_path);
 
     /**
      * @brief Initializes the MONA NFA by converting from a Mata NFA.
      *
      * @param input Mata NFA to be converted.
+     * @param alphabet_order Optional order of symbols in the alphabet.
      *
      * @return this
      */
-    Nfa& from_mata(const mamonata::mata::nfa::Nfa& input);
+    Nfa& from_mata(const mamonata::mata::nfa::Nfa& input, const std::optional<MataSymbolVector>& alphabet_order = std::nullopt);
 
     /**
-     * @brief Converts the MONA NFA to a Mata NFA.
+     * @brief Converts the MONA NFA to a Mata NFA. With predefined encoding/decoding dictionaries.
+     *
+     * @warning All transitions with symbols that are not present in the decoding dictionary will be ignored.
      *
      * @return Mata NFA equivalent to this MONA NFA.
      */
@@ -155,7 +183,7 @@ public:
      * @param file_path Output file path.
      */
     void save(const std::string& file_path) const {
-        _print_mona(file_path);
+        _print(file_path);
     }
 
     /**
@@ -171,8 +199,8 @@ public:
     /**
      * @brief Prints the MONA NFA to standard output.
      */
-    void print_mona() const {
-        _print_mona();
+    void print() const {
+        _print();
     }
 
     /**
@@ -207,6 +235,8 @@ public:
      * @brief Computes the union of this automaton with another automaton.
      * Uses MONA's DFA product construction with OR operation.
      *
+     * @warning User must ensore that both automata have the same alphabet encoding.
+     *
      * @param aut Automaton to union with.
      *
      * @return Reference to this.
@@ -216,6 +246,8 @@ public:
     /**
      * @brief Computes the intersection of this automaton with another automaton.
      * Uses MONA's DFA product construction with AND operation.
+     *
+     * @warning User must ensore that both automata have the same alphabet encoding.
      *
      * @param aut Automaton to intersect with.
      *

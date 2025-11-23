@@ -215,7 +215,7 @@ public:
      *
      * @return Pointer to the created or existing MtBddNode.
      */
-    MtBddNodePtr create_node(VarIndex var_index, MtBddNodePtr low = nullptr, MtBddNodePtr high = nullptr, NodeValue value = MAX_NODE_VALUE) {
+    MtBddNodePtr create_node(VarIndex var_index, const MtBddNodePtr low = nullptr, const MtBddNodePtr high = nullptr, NodeValue value = MAX_NODE_VALUE) {
         MtBddNodePtr new_node = std::make_shared<MtBddNode>(var_index, low, high, value);
         auto it = nodes.find(new_node);
         if (it != nodes.end()) {
@@ -257,7 +257,7 @@ public:
      *
      * @return true if the node was inserted, false if equivalent node already exists.
      */
-    bool insert_node(MtBddNodePtr node) {
+    bool insert_node(const MtBddNodePtr node) {
         if (nodes.contains(node)) {
             return false;
         }
@@ -274,7 +274,7 @@ public:
      * @return true if a root with the same name already existed
      *         and was replaced, false otherwise.
      */
-    bool promote_to_root(MtBddNodePtr node, NodeName name) {
+    bool promote_to_root(const MtBddNodePtr node, NodeName name) {
         const bool existed = root_nodes_map.contains(name);
         root_nodes_map[name] = node;
         return existed;
@@ -305,7 +305,7 @@ public:
      *
      * @return Pointer to the new src_node after insertion.
      */
-    MtBddNodePtr insert_bit_string(MtBddNodePtr src_node, VarIndex var_index, const BitVector& bit_string, NodeValue terminal_value);
+    MtBddNodePtr insert_bit_string(const MtBddNodePtr src_node, VarIndex var_index, const BitVector& bit_string, NodeValue terminal_value);
 
     /**
      * Inserts a bit string into the MTROBDD starting from a root node by its name.
@@ -322,6 +322,15 @@ public:
         root_nodes_map[root_name] = new_root;
         return new_root;
     }
+
+    /**
+     * Gets all bit strings leading to terminal nodes from a given node.
+     *
+     * @param node Pointer to the starting MtBddNode.
+     *
+     * @return Vector of pairs of bit strings and their corresponding terminal values.
+     */
+    std::vector<std::pair<BitVector, NodeValue>> get_all_bit_strings_from_root_node(const MtBddNodePtr node) const;
 
     /**
      * Trims the MTROBDD by removing nodes that are not reachable from any root node.
