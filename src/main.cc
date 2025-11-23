@@ -1,6 +1,7 @@
 #include "mata-bridge/nfa.hh"
 #include "mona-bridge/nfa.hh"
 #include "mtrobdd.hh"
+#include "timer.hh"
 
 using namespace mamonata::mtrobdd;
 using MataNfa = mamonata::mata::nfa::Nfa;
@@ -13,7 +14,7 @@ int main(int argc, char *argv[]) {
     mata_nfa.load(std::filesystem::path("../atm1.mata"));
     mata_nfa.print_as_dot();
     MonaNfa mona_nfa(mata_nfa);
-    mona_nfa.print();
+    mona_nfa.save_as_dot("tady.dot");
     MataNfa converted_mata_nfa = mona_nfa.to_mata();
     converted_mata_nfa.trim().print_as_dot();
 

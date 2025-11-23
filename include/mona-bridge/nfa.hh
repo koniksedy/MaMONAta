@@ -8,6 +8,7 @@
 #include <limits>
 #include <optional>
 #include "mtrobdd.hh"
+#include "timer.hh"
 
 // Avoid macro collisions with TRUE/FALSE from MONA headers
 #pragma push_macro("TRUE")
@@ -187,11 +188,25 @@ public:
     }
 
     /**
-     * @brief Saves the MTROBDD representation of the NFA as a DOT file.
+     * @brief Saves the MONA representation of the NFA as a DOT file.
      *
      * @param file_path Output file path.
      */
     void save_as_dot(const std::filesystem::path& file_path) const {
+        FILE* orig_stdout = stdout;
+        freopen(file_path.string().c_str(), "w", stdout);
+        print_as_dot();
+        fflush(stdout);
+        freopen("/dev/tty", "w", stdout);
+        stdout = orig_stdout;
+    }
+
+    /**
+     * @brief Saves the MTROBDD representation of the NFA as a DOT file.
+     *
+     * @param file_path Output file path.
+     */
+    void save_mtrobdd_as_dot(const std::filesystem::path& file_path) const {
         mamonata::mtrobdd::MtRobdd mtrobdd_manager(num_of_vars, nfa_impl->bddm, nfa_impl->q, static_cast<size_t>(nfa_impl->ns));
         mtrobdd_manager.save_as_dot(file_path);
     }
@@ -204,9 +219,21 @@ public:
     }
 
     /**
-     * @brief Prints the MTROBDD representation of the NFA in DOT format to standard output.
+     * @brief Prints the MONA representation of the NFA in DOT format to standard output.
      */
     void print_as_dot() const {
+        unsigned *indices = new unsigned[num_of_vars];
+        for (unsigned i = 0; i < num_of_vars; ++i) {
+            indices[i] = i;
+        }
+        dfaPrintGraphviz(nfa_impl, num_of_vars, indices);
+        delete[] indices;
+    }
+
+    /**
+     * @brief Prints the MTROBDD representation of the NFA in DOT format to standard output.
+     */
+    void print_mtrobdd_as_dot() const {
         mamonata::mtrobdd::MtRobdd mtrobdd_manager(num_of_vars, nfa_impl->bddm, nfa_impl->q, static_cast<size_t>(nfa_impl->ns));
         mtrobdd_manager.print_as_dot();
     }

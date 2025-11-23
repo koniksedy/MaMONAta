@@ -284,25 +284,25 @@ mamonata::mata::nfa::Nfa Nfa::to_mata() const {
 }
 
 Nfa& Nfa::minimize() {
-    auto tmp { dfaMinimize(nfa_impl) };
+    TIME(auto tmp { dfaMinimize(nfa_impl) });
     std::swap(nfa_impl, tmp);
     return *this;
 }
 
 Nfa& Nfa::union_det_complete(const Nfa& aut) {
-    auto tmp { dfaProduct(nfa_impl, aut.nfa_impl, dfaOR) };
+    TIME(auto tmp { dfaProduct(nfa_impl, aut.nfa_impl, dfaOR) });
     std::swap(nfa_impl, tmp);
     return *this;
 }
 
 Nfa& Nfa::intersection(const Nfa& aut) {
-    auto tmp { dfaProduct(nfa_impl, aut.nfa_impl, dfaAND) };
+    TIME(auto tmp { dfaProduct(nfa_impl, aut.nfa_impl, dfaAND) });
     std::swap(nfa_impl, tmp);
     return *this;
 }
 
 Nfa& Nfa::complement() {
-    dfaNegation(nfa_impl);
+    TIME(dfaNegation(nfa_impl));
     return *this;
 }
 

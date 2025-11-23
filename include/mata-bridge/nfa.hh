@@ -8,6 +8,7 @@
 #include "mata/nfa/algorithms.hh"
 #include "mata/utils/ord-vector.hh"
 #include "mata/nfa/builder.hh"
+#include "timer.hh"
 
 
 // Bridge namespace exposing Mata NFA functionality.
