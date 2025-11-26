@@ -293,6 +293,7 @@ Nfa& Nfa::determinize() {
         }
     );
 
+    // Free intermediate DFAs
     for (size_t i = 0; i < num_of_nondet_vars; ++i) {
         assert(to_free[i] != nullptr);
         dfaFree(to_free[i]);

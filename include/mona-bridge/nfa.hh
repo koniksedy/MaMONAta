@@ -126,6 +126,7 @@ public:
         from_mata(mata_nfa, alphabet_order);
     }
 
+    // Copy constructor
     Nfa(const Nfa& other)
         : nfa_impl(dfaCopy(other.nfa_impl)),
           num_of_vars(other.num_of_vars),
@@ -136,48 +137,76 @@ public:
           alphabet_encode_dict(other.alphabet_encode_dict),
           alphabet_decode_dict(other.alphabet_decode_dict) {}
 
-    Nfa& operator=(const Nfa& other) {
-        if (this != &other) {
-            if (nfa_impl != nullptr) {
-                dfaFree(nfa_impl);
-            }
-            nfa_impl = dfaCopy(other.nfa_impl);
-            num_of_vars = other.num_of_vars;
-            num_of_alphabet_vars = other.num_of_alphabet_vars;
-            num_of_nondet_vars = other.num_of_nondet_vars;
-            nondeterminism_level = other.nondeterminism_level;
-            alphabet_size = other.alphabet_size;
-            alphabet_encode_dict = other.alphabet_encode_dict;
-            alphabet_decode_dict = other.alphabet_decode_dict;
-        }
-        return *this;
-    }
-
-    Nfa& operator=(Nfa&& other) noexcept {
-        if (this != &other) {
-            if (nfa_impl != nullptr) {
-                dfaFree(nfa_impl);
-            }
-            nfa_impl = other.nfa_impl;
-            num_of_vars = other.num_of_vars;
-            num_of_alphabet_vars = other.num_of_alphabet_vars;
-            num_of_nondet_vars = other.num_of_nondet_vars;
-            nondeterminism_level = other.nondeterminism_level;
-            alphabet_size = other.alphabet_size;
-            alphabet_encode_dict = std::move(other.alphabet_encode_dict);
-            alphabet_decode_dict = std::move(other.alphabet_decode_dict);
-
-            other.nfa_impl = nullptr;
-        }
-        return *this;
-    }
-
     // Move constructor
-    // Ensures proper resource management
-    Nfa(Nfa&& other) noexcept : nfa_impl(other.nfa_impl)
+    Nfa(Nfa&& other) noexcept
+        : nfa_impl(other.nfa_impl),
+          num_of_vars(other.num_of_vars),
+          num_of_alphabet_vars(other.num_of_alphabet_vars),
+          num_of_nondet_vars(other.num_of_nondet_vars),
+          nondeterminism_level(other.nondeterminism_level),
+          alphabet_size(other.alphabet_size),
+          alphabet_encode_dict(std::move(other.alphabet_encode_dict)),
+          alphabet_decode_dict(std::move(other.alphabet_decode_dict))
     {
         other.nfa_impl = nullptr;
+        other.nfa_impl = nullptr;
+        other.num_of_vars = 0;
+        other.num_of_alphabet_vars = 0;
+        other.num_of_nondet_vars = 0;
+        other.nondeterminism_level = 0;
+        other.alphabet_size = 0;
     }
+
+    // Copy assignment operator
+    Nfa& operator=(const Nfa& other) {
+        if (this == &other) {
+            return *this;
+        }
+
+        if (nfa_impl != nullptr) {
+            dfaFree(nfa_impl);
+        }
+        nfa_impl = dfaCopy(other.nfa_impl);
+        num_of_vars = other.num_of_vars;
+        num_of_alphabet_vars = other.num_of_alphabet_vars;
+        num_of_nondet_vars = other.num_of_nondet_vars;
+        nondeterminism_level = other.nondeterminism_level;
+        alphabet_size = other.alphabet_size;
+        alphabet_encode_dict = other.alphabet_encode_dict;
+        alphabet_decode_dict = other.alphabet_decode_dict;
+
+        return *this;
+    }
+
+    // Move assignment operator
+    Nfa& operator=(Nfa&& other) noexcept {
+        if (this == &other) {
+            return *this;
+        }
+
+        if (nfa_impl != nullptr) {
+            dfaFree(nfa_impl);
+        }
+        nfa_impl = other.nfa_impl;
+        num_of_vars = other.num_of_vars;
+        num_of_alphabet_vars = other.num_of_alphabet_vars;
+        num_of_nondet_vars = other.num_of_nondet_vars;
+        nondeterminism_level = other.nondeterminism_level;
+        alphabet_size = other.alphabet_size;
+        alphabet_encode_dict = std::move(other.alphabet_encode_dict);
+        alphabet_decode_dict = std::move(other.alphabet_decode_dict);
+
+        other.nfa_impl = nullptr;
+        other.num_of_vars = 0;
+        other.num_of_alphabet_vars = 0;
+        other.num_of_nondet_vars = 0;
+        other.nondeterminism_level = 0;
+        other.alphabet_size = 0;
+
+        return *this;
+    }
+
+
 
     ~Nfa() {
         if (nfa_impl != nullptr) {
@@ -322,7 +351,7 @@ public:
      * @brief Computes the union of this automaton with another automaton.
      * Uses MONA's DFA product construction with OR operation.
      *
-     * @warning User must ensore that both automata have the same alphabet encoding.
+     * @warning User must ensure that both automata have the same alphabet encoding.
      *
      * @param aut Automaton to union with.
      *
@@ -334,7 +363,7 @@ public:
      * @brief Computes the intersection of this automaton with another automaton.
      * Uses MONA's DFA product construction with AND operation.
      *
-     * @warning User must ensore that both automata have the same alphabet encoding.
+     * @warning User must ensure that both automata have the same alphabet encoding.
      *
      * @param aut Automaton to intersect with.
      *

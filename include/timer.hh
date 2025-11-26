@@ -6,7 +6,6 @@
 #include <string>
 #include <unordered_map>
 
-#define TIMING_ENABLED
 
 // Enable timing only if TIMING_ENABLED is defined
 #ifdef TIMING_ENABLED
@@ -28,15 +27,17 @@
  * identified by string labels. It records durations in microseconds.
  */
 class Timer {
+public:
+    using microseconds = std::chrono::microseconds::rep;
+private:
     Timer() = default;
     Timer(const Timer&) = delete; // prevent copy
     Timer& operator=(const Timer&) = delete;  // prevent assignment
 
     using clock_t = std::chrono::high_resolution_clock;
-    using miliseconds = std::chrono::microseconds::rep;
 
     std::unordered_map<std::string, clock_t::time_point> start_times{};
-    std::unordered_map<std::string, miliseconds> durations{};
+    std::unordered_map<std::string, microseconds> durations{};
 
     // Get the singleton instance
     static Timer& instance() {
@@ -63,7 +64,7 @@ public:
      * @param label Identifier for the timing session.
      * @return Duration in microseconds.
      */
-    static miliseconds stop(const std::string& label) {
+    static microseconds stop(const std::string& label) {
         auto end_time = std::chrono::high_resolution_clock::now();
         auto start_it = instance().start_times.find(label);
         if (start_it == instance().start_times.end()) {
@@ -81,7 +82,7 @@ public:
      * @param label Identifier for the timing session.
      * @return Duration in microseconds.
      */
-    static miliseconds get(const std::string& label) {
+    static microseconds get(const std::string& label) {
         auto it = instance().durations.find(label);
         if (it == instance().durations.end()) {
             throw std::runtime_error("No recorded duration for label '" + label + "'.");
