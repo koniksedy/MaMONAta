@@ -126,6 +126,59 @@ public:
         from_mata(mata_nfa, alphabet_order);
     }
 
+    Nfa(const Nfa& other)
+        : nfa_impl(dfaCopy(other.nfa_impl)),
+          num_of_vars(other.num_of_vars),
+          num_of_alphabet_vars(other.num_of_alphabet_vars),
+          num_of_nondet_vars(other.num_of_nondet_vars),
+          nondeterminism_level(other.nondeterminism_level),
+          alphabet_size(other.alphabet_size),
+          alphabet_encode_dict(other.alphabet_encode_dict),
+          alphabet_decode_dict(other.alphabet_decode_dict) {}
+
+    Nfa& operator=(const Nfa& other) {
+        if (this != &other) {
+            if (nfa_impl != nullptr) {
+                dfaFree(nfa_impl);
+            }
+            nfa_impl = dfaCopy(other.nfa_impl);
+            num_of_vars = other.num_of_vars;
+            num_of_alphabet_vars = other.num_of_alphabet_vars;
+            num_of_nondet_vars = other.num_of_nondet_vars;
+            nondeterminism_level = other.nondeterminism_level;
+            alphabet_size = other.alphabet_size;
+            alphabet_encode_dict = other.alphabet_encode_dict;
+            alphabet_decode_dict = other.alphabet_decode_dict;
+        }
+        return *this;
+    }
+
+    Nfa& operator=(Nfa&& other) noexcept {
+        if (this != &other) {
+            if (nfa_impl != nullptr) {
+                dfaFree(nfa_impl);
+            }
+            nfa_impl = other.nfa_impl;
+            num_of_vars = other.num_of_vars;
+            num_of_alphabet_vars = other.num_of_alphabet_vars;
+            num_of_nondet_vars = other.num_of_nondet_vars;
+            nondeterminism_level = other.nondeterminism_level;
+            alphabet_size = other.alphabet_size;
+            alphabet_encode_dict = std::move(other.alphabet_encode_dict);
+            alphabet_decode_dict = std::move(other.alphabet_decode_dict);
+
+            other.nfa_impl = nullptr;
+        }
+        return *this;
+    }
+
+    // Move constructor
+    // Ensures proper resource management
+    Nfa(Nfa&& other) noexcept : nfa_impl(other.nfa_impl)
+    {
+        other.nfa_impl = nullptr;
+    }
+
     ~Nfa() {
         if (nfa_impl != nullptr) {
             dfaFree(nfa_impl);

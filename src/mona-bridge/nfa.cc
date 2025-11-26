@@ -232,7 +232,7 @@ Nfa& Nfa::from_mata(const mamonata::mata::nfa::Nfa& input, const std::optional<M
         if (mata_nfa.is_final_state(state)) {
             nfa_impl->f[state] = 1;
         } else {
-            nfa_impl->f[state] = 0;
+            nfa_impl->f[state] = -1;
         }
     }
     // Set sink state as reject if exists.
@@ -285,30 +285,45 @@ mamonata::mata::nfa::Nfa Nfa::to_mata() const {
 
 Nfa& Nfa::determinize() {
     DFA* tmp = nfa_impl;
+    std::vector<DFA*> to_free(num_of_nondet_vars, nullptr);
     TIME(
         for (size_t i = 0; i < num_of_nondet_vars; ++i) {
-            tmp = dfaProject(tmp, static_cast<unsigned>(num_of_vars - i - 1));
+            to_free[i] = tmp;
+            tmp = dfaProject(tmp, static_cast<unsigned>(num_of_vars - 0 - 1));
         }
     );
-    std::swap(nfa_impl, tmp);
+
+    for (size_t i = 0; i < num_of_nondet_vars; ++i) {
+        assert(to_free[i] != nullptr);
+        dfaFree(to_free[i]);
+    }
+    nfa_impl = tmp;
+
+    num_of_vars = num_of_alphabet_vars;
+    num_of_nondet_vars = 0;
+    nondeterminism_level = 1;
+
     return *this;
 }
 
 Nfa& Nfa::minimize() {
     TIME(auto tmp { dfaMinimize(nfa_impl) });
-    std::swap(nfa_impl, tmp);
+    dfaFree(nfa_impl);
+    nfa_impl = tmp;
     return *this;
 }
 
 Nfa& Nfa::union_det_complete(const Nfa& aut) {
     TIME(auto tmp { dfaProduct(nfa_impl, aut.nfa_impl, dfaOR) });
-    std::swap(nfa_impl, tmp);
+    dfaFree(nfa_impl);
+    nfa_impl = tmp;
     return *this;
 }
 
 Nfa& Nfa::intersection(const Nfa& aut) {
     TIME(auto tmp { dfaProduct(nfa_impl, aut.nfa_impl, dfaAND) });
-    std::swap(nfa_impl, tmp);
+    dfaFree(nfa_impl);
+    nfa_impl = tmp;
     return *this;
 }
 

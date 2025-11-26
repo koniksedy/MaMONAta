@@ -3,7 +3,7 @@ project(MaMONAta LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 set(CMAKE_C_FLAGS "-fgnu89-inline")
-# set(CMAKE_C_FLAGS_DEBUG "-g -O0")
+set(CMAKE_C_FLAGS_DEBUG "-g -O0")
 # set(CMAKE_CXX_FLAGS_DEBUG "-fsanitize=address -g -O0")
 
 # Add MONA library
