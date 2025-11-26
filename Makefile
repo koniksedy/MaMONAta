@@ -4,15 +4,15 @@ all:
 	@echo "Run 'make debug' or 'make release'"
 
 debug: CONFIG = Debug
-debug: build run
+debug: build
 
 release: CONFIG = Release
-release: build run
+release: build
 
 build:
 	@echo "Config: $(CONFIG)"
 	@mkdir -p build
-	cmake -S . -B build -DCMAKE_BUILD_TYPE=$(CONFIG) && cmake --build build -- -j 6;
+	cmake -S . -B build -DCMAKE_BUILD_TYPE=$(CONFIG) && cmake --build build -- -j 6
 
 clean:
 	rm -rf build
