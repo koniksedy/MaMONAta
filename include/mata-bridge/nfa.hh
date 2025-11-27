@@ -464,7 +464,7 @@ public:
      * @brief Complements the NFA by determinizing it, adding a sink state, and making the automaton complete.
      * Non-final states in the original automaton are converted to final states in the complemented automaton.
      */
-    Nfa& complement_classical(const OrdVector<Symbol>& symbols);
+    Nfa& complement_classical(const SymbolVector& symbols);
 
     /**
      * @brief Complements the NFA by determinizing it using Brzozowski's algorithm, adding a sink state,
@@ -472,7 +472,7 @@ public:
      *
      * @return Reference to this NFA.
      */
-    Nfa& complement_brzozowski(const OrdVector<Symbol>& symbols);
+    Nfa& complement_brzozowski(const SymbolVector& symbols);
 };
 
 }

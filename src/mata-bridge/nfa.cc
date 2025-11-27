@@ -82,14 +82,16 @@ Nfa& Nfa::intersection(const Nfa& aut, const Symbol first_epsilon) {
     return *this;
 }
 
-Nfa& Nfa::complement_classical(const OrdVector<Symbol>& symbols) {
-    TIME(auto tmp{ mata::nfa::algorithms::complement_classical(nfa_impl, symbols) });
+Nfa& Nfa::complement_classical(const SymbolVector& symbols) {
+    OrdVector<Symbol> ord_symbols{ symbols.begin(), symbols.end() };
+    TIME(auto tmp{ mata::nfa::algorithms::complement_classical(nfa_impl, ord_symbols) });
     std::swap(nfa_impl, tmp);
     return *this;
 }
 
-Nfa& Nfa::complement_brzozowski(const OrdVector<Symbol>& symbols) {
-    TIME(auto tmp{ mata::nfa::algorithms::complement_brzozowski(nfa_impl, symbols) });
+Nfa& Nfa::complement_brzozowski(const SymbolVector& symbols) {
+    OrdVector<Symbol> ord_symbols{ symbols.begin(), symbols.end() };
+    TIME(auto tmp{ mata::nfa::algorithms::complement_brzozowski(nfa_impl, ord_symbols) });
     std::swap(nfa_impl, tmp);
     return *this;
 }
