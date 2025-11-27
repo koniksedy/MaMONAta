@@ -52,21 +52,22 @@ Below you can see an example of Mata automaton in the DOT format, mona automaton
 
 ### Alphabet
 In order to support nonbinary alphabets in MONA, MaMONAta encodes each symbol using multiple binary variables. It uses $log_2(|\Sigma|)$ variables to represent an alphabet of size $|\Sigma|$.
+
 **!!WARNING!!:** When performing operations that combine multiple automata (e.g., union, intersection, concatenation),
 the user is responsible for ensuring that the alphabet encodings are consistent across all automata involved in the operation.
 
-
 ### Nondeterminism
-MaMONAta allows MONA to represent nondeterministic automata by introducing additional variables to encode nondeterministic choices. This variables are put at the end of the variable ordering.
+MaMONAta allows MONA to represent nondeterministic automata by introducing additional variables to encode nondeterministic choices. These variables are put at the end of the variable ordering.
 The determinization of the automaton is then performed by projecting out these nondeterministic choice variables. The placement of these variables at the end of the variable ordering makes the projection more efficient than if they were put at the beginning, which would lead to more difficult determinization of the shared MtROBDD representation.
 
-**!!WARNING!!:** When performing any MONA operation on the automaton, the user is responsible for ensuring that there are no nondeterministic choice variables present in the automaton. The existence of such variables would lead to incorrect results. For example: two sequences, containing one alphabet variable and one nondeterministic variable (00 and 01) and differ only in the value of the nondeterministic choice variables would be considered two different symbol encodings during operations like union or intersection, which is not the intended behavior.
+**!!WARNING!!:** When performing any MONA operation on the automaton, the user is responsible for ensuring that there are no nondeterministic choice variables present in the automaton. The existence of such variables would lead to incorrect results. For example, two sequences, containing one alphabet variable and one nondeterministic variable (00 and 01), and differ only in the value of the nondeterministic choice variables, would be considered two different symbol encodings during operations like union or intersection, which is not the intended behavior.
 
 ### Complete Transition Function
 MONA always works with complete transition functions. If the automaton is converted from Mata and has an incomplete transition function, MaMONAta adds a sink state to the automaton to make the transition function complete.
 
 ### Reduced BDD
-MONA relay on reduced BDDs to represent the transition function of the automaton. If the provided BDD is not reduced, the behavior of MONA is undefined.
+MONA relies on reduced BDDs to represent the transition function of the automaton. If the provided BDD is not reduced, the behavior of MONA is undefined.
+
 **!!WARNING!!:** When manually building a `.mona` file, the user is responsible for ensuring that the BDD is reduced.
 
 ## MONA Format
@@ -105,12 +106,12 @@ end
 ```
 - `MONA DFA` is a mandatory header indicating that the file represents a deterministic finite automaton.
 - `number of variables` specifies the number of binary variables used to encode the alphabet.
-- `variables` lists the names of the variables used in the BDD representation. MaMONAta uses prefix `A` for alphabet variables and `N` for nondeterministic choice variables.
+- `variables` lists the names of the variables used in the BDD representation. MaMONAta uses the prefix `A` for alphabet variables and `N` for nondeterministic choice variables.
 - `orders` indicates the order of each variable in the BDD.
 - `states` indicates the total number of states in the automaton.
 - `initial` specifies the initial state of the automaton.
 - `bdd nodes` indicates the number of nodes in the BDD representation.
-- `final` is a list indicating the acceptance status of each state. A value of `1` indicates an accepting state, while `-1` indicates a non-accepting state. `0` is not used in mata and is reserved for special use with WS1S in MONA.
+- `final` is a list indicating the acceptance status of each state. A value of `1` indicates an accepting state, while `-1` indicates a non-accepting state. `0` is not used in Mata and is reserved for special use with WS1S in MONA.
 - `behaviour` lists the BDD node indices corresponding to the beginning of the transition function for each state.
 - `bdd` section contains the BDD nodes, each represented by three values: variable index, low child index, and high child index. A negative variable index indicates a terminal node, with the name/value of the target state being stored in the low child index. The high child index is unused for terminal nodes and is set to `0`.
 
