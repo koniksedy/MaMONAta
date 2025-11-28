@@ -1,6 +1,6 @@
 #!/bin/bash
 
-wget https://github.com/VeriFIT/mata/archive/refs/heads/devel.zip
+wget https://github.com/VeriFIT/mata/archive/refs/tags/1.25.0.zip
 unzip devel.zip
 mv mata-devel mata
 rm devel.zip
