@@ -3,6 +3,9 @@ MaMONAta is a library that provides an adapter for Mata and MONA implementations
 It allows users to easily convert between different automata implementations and transparently
 compare the performance of the two tools.
 
+- Mata version used: 1.25.0
+- MONA version used: 1.4-18
+
 ## Features
 - Parsing of automata in `.mata` and `.mona` formats.
 - All possible conversions between Mata and MONA automata.
